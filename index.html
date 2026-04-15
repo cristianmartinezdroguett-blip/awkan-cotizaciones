@@ -1332,6 +1332,7 @@ function renderServicios() {
         <h1 style="font-size:24px;font-weight:800">Servicios</h1>
         <p style="color:var(--text3);font-size:13px;margin-top:2px">Precios de venta al cliente (por hora)</p>
       </div>
+      <button class="btn btn-primary" onclick="openServiceModal()">+ Nuevo Servicio</button>
     </div>
     ${services.map(s => {
       const tag = serviceTag(s.tipo);
@@ -1429,15 +1430,26 @@ function renderProviderModal() {
 
 function renderServiceModal() {
   const s = state.modalData;
+  const isEdit = !!s.id;
   return `<div class="overlay" onclick="if(event.target===this)closeModal()">
     <div class="modal">
-      <h2>Editar Servicio</h2>
+      <h2>${isEdit ? 'Editar' : 'Nuevo'} Servicio</h2>
       <div class="grid-2">
-        <div class="field"><label>Nombre</label><input class="input" id="svc_nombre" value="${escHtml(s.nombre)}"></div>
-        <div class="field"><label>Precio de Venta / Hora</label><input class="input" id="svc_precio" type="number" value="${s.precioHora}"></div>
+        <div class="field"><label>Nombre</label><input class="input" id="svc_nombre" value="${escHtml(s.nombre || '')}"></div>
+        <div class="field"><label>Tipo</label>
+          <select class="select" id="svc_tipo" ${isEdit ? 'disabled' : ''}>
+            <option value="fire" ${s.tipo==='fire'?'selected':''}>🔥 Bomberos</option>
+            <option value="flag" ${s.tipo==='flag'?'selected':''}>🏁 Banderilleros</option>
+            <option value="med" ${s.tipo==='med'?'selected':''}>🚑 Ambulancia</option>
+            <option value="guard" ${s.tipo==='guard'?'selected':''}>🌙 Guardias</option>
+            <option value="other" ${s.tipo==='other'?'selected':''}>📦 Otro</option>
+          </select>
+        </div>
+        <div class="field"><label>Precio de Venta / Hora</label><input class="input" id="svc_precio" type="number" value="${s.precioHora || 0}"></div>
       </div>
       <div style="display:flex;gap:8px;margin-top:20px">
-        <button class="btn btn-primary" onclick="saveService('${s.id}')">Guardar</button>
+        <button class="btn btn-primary" onclick="saveService('${s.id || ''}')">${isEdit ? 'Guardar' : 'Crear Servicio'}</button>
+        ${isEdit ? `<button class="btn btn-danger" onclick="if(confirm('¿Eliminar este servicio?'))deleteService('${s.id}')">Eliminar</button>` : ''}
         <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
       </div>
     </div>
@@ -1670,17 +1682,34 @@ function deleteProvider(id) {
 }
 
 function openServiceModal(id) {
-  const s = DB.getServices().find(x => x.id === id);
-  if (s) setState({ modal: 'service', modalData: { ...s } });
+  if (id) {
+    const s = DB.getServices().find(x => x.id === id);
+    if (s) setState({ modal: 'service', modalData: { ...s } });
+  } else {
+    setState({ modal: 'service', modalData: { id: '', nombre: '', tipo: 'other', precioHora: 0 } });
+  }
 }
 
 function saveService(id) {
   const services = DB.getServices();
-  const idx = services.findIndex(s => s.id === id);
-  if (idx < 0) return;
-  services[idx].nombre = document.getElementById('svc_nombre').value;
-  services[idx].precioHora = parseFloat(document.getElementById('svc_precio').value) || 0;
+  const nombre = document.getElementById('svc_nombre').value.trim();
+  const tipo = document.getElementById('svc_tipo').value;
+  const precioHora = parseFloat(document.getElementById('svc_precio').value) || 0;
+  if (!nombre) return alert('Ingresa un nombre para el servicio');
+  if (id) {
+    const idx = services.findIndex(s => s.id === id);
+    if (idx < 0) return;
+    services[idx].nombre = nombre;
+    services[idx].precioHora = precioHora;
+  } else {
+    services.push({ id: 's' + Date.now(), nombre: nombre, tipo: tipo, precioHora: precioHora });
+  }
   DB.saveServices(services);
+  closeModal();
+}
+
+function deleteService(id) {
+  DB.saveServices(DB.getServices().filter(s => s.id !== id));
   closeModal();
 }
 

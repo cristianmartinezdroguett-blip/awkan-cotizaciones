@@ -994,8 +994,10 @@ function renderCotForm() {
           <div class="field"><label>Servicio</label>
             <select class="select" onchange="changeCotItemService(${idx},this.value)">
               ${services.map(s => `<option value="${s.id}" ${s.id===item.servicioId?'selected':''}>${s.nombre}</option>`).join('')}
+              <option value="_manual" ${item.servicioId==='_manual'?'selected':''}>✏️ Otro (manual)</option>
             </select>
           </div>
+          ${item.servicioId==='_manual' ? `<div class="field"><label>Nombre del servicio</label><input class="input" value="${escHtml(item.nombreServicio||'')}" onchange="window._cotForm.items[${idx}].nombreServicio=this.value;render()"></div>` : ''}
           <div class="field"><label>Horas</label><input class="input" type="number" min="1" value="${item.horas}" ${item.tipoServicio==='guard' || (f.horaInicio && f.horaFin) ? 'readonly style="opacity:.6"' : 'onchange="window._cotForm.items['+idx+'].horas=parseInt(this.value)||1;render()"'}>${item.tipoServicio==='guard' ? '<div style="font-size:10px;color:var(--text3);margin-top:2px">Turno fijo</div>' : ''}</div>
           ${item.ventaFija ? `<div class="field"><label>Venta Fija</label><input class="input" value="${fmt(item.ventaFija)}" readonly style="opacity:.6"></div>` : `<div class="field"><label>Precio/Hora (venta)</label><input class="input" type="number" value="${item.precioHora}" onchange="window._cotForm.items[${idx}].precioHora=parseFloat(this.value)||0;render()"></div>`}
         </div>
@@ -1463,27 +1465,44 @@ function newCotizacion() { window._cotForm = null; setState({ editingCot: 'new' 
 
 function addCotItem() {
   const services = DB.getServices();
-  if (!services.length) return alert('Primero crea al menos un servicio');
   const usedTypes = window._cotForm.items.map(function(i) { return i.tipoServicio; });
   // Bomberos permite múltiples, los demás solo uno
   const available = services.filter(function(s) { return s.tipo === 'fire' || usedTypes.indexOf(s.tipo) === -1; });
-  if (available.length === 0) return alert('Ya agregaste todos los servicios disponibles');
-  const s = available[0];
   const f = window._cotForm;
-  const defaultHoras = s.tipo === 'guard' ? 12 : (f.horaInicio && f.horaFin ? f.horaFin - f.horaInicio : 4);
-  window._cotForm.items.push({ servicioId: s.id, tipoServicio: s.tipo, nombreServicio: s.nombre, horas: defaultHoras, precioHora: s.precioHora, proveedorId: '', nombreProveedor: '', costoProveedor: 0 });
+  if (available.length > 0) {
+    const s = available[0];
+    const defaultHoras = s.tipo === 'guard' ? 12 : (f.horaInicio && f.horaFin ? f.horaFin - f.horaInicio : 4);
+    window._cotForm.items.push({ servicioId: s.id, tipoServicio: s.tipo, nombreServicio: s.nombre, horas: defaultHoras, precioHora: s.precioHora, proveedorId: '', nombreProveedor: '', costoProveedor: 0 });
+  } else {
+    const defaultHoras = f.horaInicio && f.horaFin ? f.horaFin - f.horaInicio : 4;
+    window._cotForm.items.push({ servicioId: '_manual', tipoServicio: 'other', nombreServicio: '', horas: defaultHoras, precioHora: 0, proveedorId: '', nombreProveedor: '', costoProveedor: 0, costoFijo: 0, ventaFija: 0, personal: 0 });
+  }
   render();
 }
 
 function removeCotItem(idx) { window._cotForm.items.splice(idx, 1); render(); }
 
 function changeCotItemService(idx, svcId) {
+  const item = window._cotForm.items[idx];
+  if (svcId === '_manual') {
+    item.servicioId = '_manual';
+    item.tipoServicio = 'other';
+    item.nombreServicio = '';
+    item.precioHora = 0;
+    item.proveedorId = '';
+    item.nombreProveedor = '';
+    item.costoProveedor = 0;
+    item.costoFijo = 0;
+    item.ventaFija = 0;
+    item.personal = 0;
+    render();
+    return;
+  }
   const services = DB.getServices();
   const s = services.find(x => x.id === svcId);
   if (!s) return;
-  const duplicate = window._cotForm.items.some(function(item, i) { return i !== idx && item.tipoServicio === s.tipo; });
+  const duplicate = window._cotForm.items.some(function(it, i) { return i !== idx && it.tipoServicio === s.tipo; });
   if (duplicate && s.tipo !== 'fire') return alert('Ya tienes ' + s.nombre + ' en esta cotización');
-  const item = window._cotForm.items[idx];
   item.servicioId = s.id;
   item.tipoServicio = s.tipo;
   item.nombreServicio = s.nombre;

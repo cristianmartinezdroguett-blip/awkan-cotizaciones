@@ -732,7 +732,7 @@ function updateCotHoras() {
     f.items.forEach(function(item) {
       if (item.tipoServicio === 'guard') {
         item.horas = 12;
-      } else {
+      } else if (!item._horasManual) {
         item.horas = horas;
         // Recalcular tramos si el proveedor tiene tramos
         if (item.proveedorId) {
@@ -998,7 +998,7 @@ function renderCotForm() {
             </select>
           </div>
           ${item.servicioId==='_manual' ? `<div class="field"><label>Nombre del servicio</label><input class="input" value="${escHtml(item.nombreServicio||'')}" onchange="window._cotForm.items[${idx}].nombreServicio=this.value;render()"></div>` : ''}
-          <div class="field"><label>Horas</label><input class="input" type="number" min="1" value="${item.horas}" ${item.tipoServicio==='guard' || (f.horaInicio && f.horaFin) ? 'readonly style="opacity:.6"' : 'onchange="window._cotForm.items['+idx+'].horas=parseInt(this.value)||1;render()"'}>${item.tipoServicio==='guard' ? '<div style="font-size:10px;color:var(--text3);margin-top:2px">Turno fijo</div>' : ''}</div>
+          <div class="field"><label>Horas</label><input class="input" type="number" min="1" value="${item.horas}" ${item.tipoServicio==='guard' ? 'readonly style="opacity:.6"' : 'onchange="window._cotForm.items['+idx+'].horas=parseInt(this.value)||1;window._cotForm.items['+idx+']._horasManual=true;render()"'}>${item.tipoServicio==='guard' ? '<div style="font-size:10px;color:var(--text3);margin-top:2px">Turno fijo</div>' : ''}</div>
           ${item.ventaFija ? `<div class="field"><label>Venta Fija</label><input class="input" value="${fmt(item.ventaFija)}" readonly style="opacity:.6"></div>` : `<div class="field"><label>Precio/Hora (venta)</label><input class="input" type="number" value="${item.precioHora}" onchange="window._cotForm.items[${idx}].precioHora=parseFloat(this.value)||0;render()"></div>`}
         </div>
         <div class="grid-2" style="margin-top:4px">
